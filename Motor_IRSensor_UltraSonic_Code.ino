@@ -1,3 +1,4 @@
+//For Motor Driver
 const int IN1 = 6 ; // motor A (right) s1
 const int IN2 = 7; // motor A (right)s2
 const int IN3 = 3; // motor B (left)s3
@@ -11,10 +12,12 @@ const int ECHO_PIN = 12;
 long US_travel_time;
 int US_distance;
 
+//For IR Sensor
 const int LEYE = A4; // Left sensor
 const int REYE = A3; // Right sensor
 
-const int unit = 1000; // assign unit to be one second for the tiem manegement 
+const int unit = 1000; // assign unit to be one second for the time management
+
 void stopmove (){
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
@@ -99,7 +102,8 @@ void backwardturnLeft (int speed){
 
 void setup() {
 Serial.begin(9600);
-  // put your setup code here, to run once:
+
+//Motor Driver
 pinMode (IN1, OUTPUT);
 pinMode (IN2, OUTPUT);
 pinMode (IN3, OUTPUT);
@@ -107,14 +111,13 @@ pinMode (IN4, OUTPUT);
 pinMode (EN_A, OUTPUT);
 pinMode (EN_B, OUTPUT);
 
-//semsors 
+//IR Sensors
 pinMode( LEYE, INPUT ); // the IRn sensor1 
 pinMode( REYE, INPUT ); // the IR sensor 2
 
-//For US Sensors
+//US Sensors
 pinMode(TRIGGER_PIN, OUTPUT);
 pinMode(ECHO_PIN, INPUT);
-
 
 //End of setup
 }
@@ -152,6 +155,7 @@ digitalWrite(TRIGGER_PIN, LOW);
 //pulseIn function waits for the ECHO_PIN to get to high caused by the sound wave bouncing back. It starts a timer which ends when the ECHO_PIN goes to low again.
 //pulseIn then returns the length of the pulse in micro seconds.
 US_travel_time = pulseIn(ECHO_PIN, HIGH);
+
 //0.034 is the speed of sound in cm/micro second. Divided by 2 as the wave travels to the object and back again
 US_distance = US_travel_time*0.034/2;
 
