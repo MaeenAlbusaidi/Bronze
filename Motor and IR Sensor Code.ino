@@ -5,6 +5,11 @@ const int IN4 = 11; // motor B (left)s4
 const int EN_A = 9;
 const int EN_B = 5;
 
+//For US Sensor
+const int TRIGGER_PIN = 13;
+const int ECHO_PIN = 12;
+long US_travel_time;
+int US_distance;
 
 const int LEYE = A4; // Left sensor
 const int REYE = A3; // Right sensor
@@ -49,7 +54,6 @@ void movebackward (int speed) { //funstion to drive backward wiht int speed
   digitalWrite(IN4, HIGH);
   analogWrite(EN_B, (speed+5));
 }
-
 
 void forwardRight (int speed) {
   //motor a
@@ -107,10 +111,15 @@ pinMode (EN_B, OUTPUT);
 pinMode( LEYE, INPUT ); // the IRn sensor1 
 pinMode( REYE, INPUT ); // the IR sensor 2
 
+//For US Sensors
+pinMode(TRIGGER_PIN, OUTPUT);
+pinMode(ECHO_PIN, INPUT);
+
+
+//End of setup
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
 int value_SL = analogRead(LEYE);
 int value_SR = analogRead (REYE);
 Serial.print("left : ");
@@ -130,6 +139,27 @@ if (value_SL>=100 && value_SR>=100){
   stopmove();
 }
 
+//US Sensor
+//Clearing any history from the TRIGGER_PIN
+digitalWrite(TRIGGER_PIN, LOW);
+delayMicroseconds(2);
+
+//Generating US wave
+digitalWrite(TRIGGER_PIN, HIGH);
+delayMicroseconds(10);
+digitalWrite(TRIGGER_PIN, LOW);
+
+//pulseIn function waits for the ECHO_PIN to get to high caused by the sound wave bouncing back. It starts a timer which ends when the ECHO_PIN goes to low again.
+//pulseIn then returns the length of the pulse in micro seconds.
+US_travel_time = pulseIn(ECHO_PIN, HIGH);
+//0.034 is the speed of sound in cm/micro second. Divided by 2 as the wave travels to the object and back again
+US_distance = US_travel_time*0.034/2;
+
+Serial.print("Distance: ");
+Serial.println(US_distance);
+
+  
+//This is the end of the loop
 }
 
 /*if (pwmSL<=150 && pwmSR<=150){
