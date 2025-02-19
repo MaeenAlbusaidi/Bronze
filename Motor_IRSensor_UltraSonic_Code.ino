@@ -170,8 +170,6 @@ else{
   Serial.print("US Sensor out of range");
 }
 
-
-  
 //This is the end of the loop
 }
 
