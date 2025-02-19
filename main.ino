@@ -1,3 +1,4 @@
+//For Motor Driver
 const int IN1 = 6 ; // motor A (right) s1
 const int IN2 = 7; // motor A (right)s2
 const int IN3 = 3; // motor B (left)s3
@@ -11,16 +12,16 @@ const int ECHO_PIN = 12;
 long US_travel_time;
 int US_distance;
 
+//For IR Sensor
 const int LEYE = A4; // Left sensor
 const int REYE = A3; // Right sensor
-
-const int unit = 1000; // assign unit to be one second for the tiem manegement 
 
 }
 
 void setup() {
 Serial.begin(9600);
-  // put your setup code here, to run once:
+
+//Motor Driver Pin Initialization
 pinMode (IN1, OUTPUT);
 pinMode (IN2, OUTPUT);
 pinMode (IN3, OUTPUT);
@@ -28,14 +29,13 @@ pinMode (IN4, OUTPUT);
 pinMode (EN_A, OUTPUT);
 pinMode (EN_B, OUTPUT);
 
-//sensors 
+//IR Sensor Pin Initialization
 pinMode( LEYE, INPUT ); // the IRn sensor1 
 pinMode( REYE, INPUT ); // the IR sensor 2
 
-//For US Sensors
+//US Sensor Pin Initialization
 pinMode(TRIGGER_PIN, OUTPUT);
 pinMode(ECHO_PIN, INPUT);
-
 
 //End of setup
 }
