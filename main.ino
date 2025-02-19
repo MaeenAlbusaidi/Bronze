@@ -77,8 +77,18 @@ US_travel_time = pulseIn(ECHO_PIN, HIGH);
 //0.034 is the speed of sound in cm/micro second. Divided by 2 as the wave travels to the object and back again
 US_distance = US_travel_time*0.034/2;
 
-Serial.print("Distance: ");
-Serial.println(US_distance);
+if (US_distance <= 10){
+  //Stop the motors
+}
+elif (US_distance > 400){
+  Serial.print("Out of range");
+}
+else{
+  Serial.print("Distance: ");
+  Serial.println(US_distance);
+}
+  
+
 
   
 //This is the end of the loop
