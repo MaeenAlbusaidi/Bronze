@@ -159,16 +159,23 @@ US_travel_time = pulseIn(ECHO_PIN, HIGH);
 //0.034 is the speed of sound in cm/micro second. Divided by 2 as the wave travels to the object and back again
 US_distance = US_travel_time*0.034/2;
 
-if (US_distance <= 10){
-  //Stop the motors
-}
-elif (US_distance <= 400){
-  Serial.print("Distance: ");
-  Serial.println(US_distance);
-}
-else{
-  Serial.print("US Sensor out of range");
-}
+if (US_distance <= 10) {
+    //Stops the motors is the object is 10cm or less from the US sensor
+    stopmove();
+  } else {
+
+    if (value_SL >= 100 && value_SR >= 100) {
+      moveforward(80);
+    } else if (value_SL < 100 && value_SR >= 100) {
+      forwardLeft(70);
+    } else if (value_SL >= 100 && value_SR < 100) {
+      forwardRight(70);
+    } else if (value_SL < 100 && value_SR < 100) {
+      stopmove();
+    }
+  }
+
+  delay(100);
 
 //This is the end of the loop
 }
@@ -187,5 +194,3 @@ Serial.print("right");
 Serial.println( value_SR);
 
 delay (2000);*/
-
-
