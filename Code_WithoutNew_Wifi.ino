@@ -164,7 +164,7 @@ US_distance = US_travel_time*0.034/2;
     //Stops the motors if there is an object <= 10cm
     stopmove();
   } else {
-    // If the path is clear, follow IR sensor logic
+
     if (value_SL >= 100 && value_SR >= 100) {
       moveforward(80);
     } else if (value_SL < 100 && value_SR >= 100) {
