@@ -1,0 +1,107 @@
+//import processing.serial.*; // Import serial library for communication
+import processing.net.*; // Import network library for WiFi communication
+
+Client myClient; // Create Serial object
+//Serial mySerial; // Serial object for receiving IP
+String serverIP = "192.168.4.1";  // Default IP of Arduino in AP Mode
+//String receivedData = ""; //stores the IP adress read from the serial monitor 
+int port = 5200; // Arduino's listening port
+
+boolean buttonPressed1 = false; // boolean variable to trak whether the button is pressed or not 
+boolean buttonPressed2= false;
+boolean showAlert = false;  // Flag to track if alert is displayed
+void setup() {
+  size(400, 400);
+  
+  println("Connecting to Arduino WiFi...");
+  myClient = new Client(this, serverIP, port);
+  
+  if (myClient.active()) {
+    println("Connected to Arduino!");
+  } else {
+    println("Failed to connect!");
+  }
+}
+
+/*void serialEvent(Serial mySerial) {
+  String data = mySerial.readStringUntil('\n'); // Read data from Serial until a newline character is found
+  if (data != null) {
+    data = trim(data); // Remove any leading or trailing whitespace
+    if (data.startsWith("IP Address: ")) { 
+      receivedData = data.substring(12); // Extract the actual IP address from the received string
+      
+      // Establish a connection to the Arduino over WiFi using the received IP address
+      myClient = new Client(this, receivedData, port);
+    }
+  }
+}
+*/
+void draw() {
+  background(220); // background color 
+  
+  // Button properties
+  int btnX1 = 100, btnY1 = 100, btnW1 = 100, btnH1 = 50; // define the button position and size 
+  int btnX2 = 100, btnY2 = 200, btnW2 = 100, btnH2 = 50;
+  
+  // if statement check if the button is checked 
+  if (buttonPressed1) {
+    fill(0, 255, 0);  // Green when pressed
+  } else {
+    fill(0, 0, 0);  // Red by default
+  }
+  rect(btnX1, btnY1, btnW1, btnH1); // start button draw the button as rectnagle 
+  if(buttonPressed2){
+    fill(200, 0 , 0);
+  }else {
+    fill(0);
+  }
+  rect(btnX2, btnY2, btnW2, btnH2); // stop button 
+  
+  fill(255); // text colour to white 
+  textSize(30); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically 
+  text("start", btnX1 + btnW1 / 2, btnY1 + btnH1 / 2);// disply the the button label 
+  text("stop", btnX2 + btnW2 / 2, btnY2 + btnH2 / 2);
+  
+  
+   // If alert is active, display alert message
+    /*if (showAlert) {
+        fill(255, 0, 0);  // Red alert background
+        rect(50, 50, 300, 100);
+        fill(0);
+        textSize(24);
+        textAlign(CENTER, CENTER);
+        text("🚨 Obstacle Detected! 🚨", 200, 100);
+    }*/
+
+  // alert message 
+   if (myClient.available() > 0) {
+        String message = myClient.readStringUntil('\n');  // Read message from Arduino
+        if (message != null) {
+            message = trim(message);  // Clean up extra spaces/newlines
+            println("📩 Received: " + message);  // Print message in console
+        }
+    }
+  }
+
+
+// Check if button is clicked
+public void mousePressed() {
+  
+  
+  // check if the mouse has been clicked in the area of the button or not 
+  if (mouseX > 100 && mouseX < 200 && mouseY > 100 && mouseY < 150) {
+    buttonPressed1 = !buttonPressed1;
+    buttonPressed2 = false; // Ensure Stop button is not active
+    println(" Sending: START");
+    myClient.write("START\n");  // Send "START" command
+    
+  }
+  if (mouseX > 100 && mouseX < 200 && mouseY > 200 && mouseY < 250){
+    buttonPressed2 = !buttonPressed2;
+     buttonPressed1 = false; // Ensure Start button is not active
+     println("Sending: STOP");
+    myClient.write("STOP\n"); // Send command to Arduino
+  
+}
+}
