@@ -1,0 +1,226 @@
+#include <WiFiS3.h>
+
+// -------------------------
+// WiFi & Server Settings
+// -------------------------
+WiFiServer server(5200);
+WiFiClient client;
+const char* ssid = "X10";
+const char* password = "12345678";
+
+// -------------------------
+// Motor Driver (L293D) Pins
+// -------------------------
+const int IN1 = 6;    // Motor A (Right) Direction Pin 1
+const int IN2 = 7;    // Motor A (Right) Direction Pin 2
+const int IN3 = 3;    // Motor B (Left) Direction Pin 1
+const int IN4 = 11;   // Motor B (Left) Direction Pin 2
+const int EN_A = 9;   // Motor A (Right) PWM Speed
+const int EN_B = 5;   // Motor B (Left) PWM Speed
+
+// -------------------------
+// Sensor Pins
+// -------------------------
+const int LEYE = A4;  // Left IR Sensor (for line following)
+const int REYE = A3;  // Right IR Sensor
+const int TRIGGER_PIN = 13; // Ultrasonic Sensor Trigger
+const int ECHO_PIN = 12;    // Ultrasonic Sensor Echo
+
+// -------------------------
+// PID Control Variables
+// -------------------------
+float Kp = 7.5;     // Proportional Gain (tune as needed)
+float Ki = 0.1;     // Integral Gain (tune as needed)
+float Kd = 5.0;     // Derivative Gain (tune as needed)
+int baseSpeed = 150;  // Base speed (PWM value)
+int lastError = 0;
+int integral = 0;
+
+// Correction factor for left motor speed (default 0.6 from your calibration)
+// Set to 1.0 if PID alone corrects the difference.
+const float leftMotorFactor = 0.6;  
+
+// -------------------------
+// Robot State Flag
+// -------------------------
+bool robotRunning = false;
+bool alert = false;
+
+// -------------------------
+// Function to Stop the Buggy
+// -------------------------
+void stopBuggy() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(EN_A, 0);
+  
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(EN_B, 0);
+}
+
+// -------------------------
+// Function: PID-Based Movement (Line Following)
+// -------------------------
+void movePID() {
+  // Read IR sensor values
+  int leftSensor = analogRead(LEYE);
+  int rightSensor = analogRead(REYE);
+  
+  // Calculate error (difference between left and right sensor readings)
+  int error = leftSensor - rightSensor;
+  
+  // PID calculations
+  integral += error;
+  int derivative = error - lastError;
+  int correction = (Kp * error + Ki * integral + Kd * derivative) / 2;  // Divide to moderate the effect
+  lastError = error;
+  
+  // Calculate motor speeds
+  int rightSpeed = baseSpeed + correction;   // Right motor (EN_A)
+  int leftSpeed  = baseSpeed - correction;     // Left motor (EN_B)
+  
+  // Apply fixed correction factor to left motor (to account for hardware differences)
+  leftSpeed = leftSpeed * leftMotorFactor;
+  
+  // Constrain speeds to a reasonable range (adjust these limits as needed)
+  rightSpeed = constrain(rightSpeed, 100, 200);
+  leftSpeed = constrain(leftSpeed, 100, 200);
+  
+  // Debug prints (optional)
+  Serial.print("Left IR: ");
+  Serial.print(leftSensor);
+  Serial.print(" | Right IR: ");
+  Serial.print(rightSensor);
+  Serial.print(" | Error: ");
+  Serial.print(error);
+  Serial.print(" => Speeds: Left=");
+  Serial.print(leftSpeed);
+  Serial.print(", Right=");
+  Serial.println(rightSpeed);
+  
+  // Set motor directions for forward movement:
+  // For Motor A (Right): IN1 = LOW, IN2 = HIGH
+  // For Motor B (Left):  IN3 = HIGH, IN4 = LOW
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  
+  // Send PWM speeds to motors
+  analogWrite(EN_A, rightSpeed);
+  analogWrite(EN_B, leftSpeed);
+}
+
+// -------------------------
+// Function: Ultrasonic Obstacle Check
+// -------------------------
+void checkUltrasonic() {
+  // Trigger ultrasonic pulse
+  digitalWrite(TRIGGER_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIGGER_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER_PIN, LOW);
+  
+  // Read the echo pulse duration (with timeout of 30ms)
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  int distance = duration * 0.034 / 2;  // Convert duration to cm
+  
+  // If an obstacle is detected (within 10 cm), stop the buggy
+  if(distance > 0 && distance <= 10) {
+    stopBuggy();
+    alert = true;
+    Serial.println("Obstacle detected! Stopping.");
+  } else {
+    alert = false;
+  }
+}
+
+// -------------------------
+// Setup: Initialization
+// -------------------------
+void setup() {
+  Serial.begin(9600);
+  
+  // Setup motor control pins
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(EN_A, OUTPUT);
+  pinMode(EN_B, OUTPUT);
+  
+  // Setup sensor pins
+  pinMode(LEYE, INPUT);
+  pinMode(REYE, INPUT);
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  
+  // Start WiFi in Access Point mode
+  Serial.println("Starting Access Point...");
+  WiFi.beginAP(ssid, password);
+  delay(5000);
+  
+  if(WiFi.localIP()) {
+    Serial.print("WiFi started! IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("WiFi failed to start!");
+  }
+  
+  server.begin();
+  Serial.println("Server started on port 5200...");
+}
+
+// -------------------------
+// Main Loop
+// -------------------------
+void loop() {
+  // Check for a client connection over WiFi
+  WiFiClient client = server.available();
+  
+  if(client) {
+    Serial.println("Client connected.");
+    
+    while(client.connected()) {
+      if(client.available()) {
+        String command = client.readStringUntil('\n');
+        command.trim();
+        Serial.print("Received command: ");
+        Serial.println(command);
+        
+        if(command == "START") {
+          robotRunning = true;
+          Serial.println("Starting robot...");
+        } else if(command == "STOP") {
+          robotRunning = false;
+          Serial.println("Stopping robot...");
+          stopBuggy();
+        }
+      }
+      
+      // If running, perform sensor checks and PID movement
+      if(robotRunning) {
+        checkUltrasonic();  // Obstacle check
+        
+        // Only move if no obstacle is detected
+        if(!alert) {
+          movePID();
+        }
+        
+        // Optionally, send telemetry back to the client
+        if(client.connected()) {
+          if(alert) {
+            client.println("Obstacle detected, stopping.");
+          } else {
+            client.println("Running");
+          }
+        }
+      }
+    }
+    
+    client.stop();
+    Serial.println("Client disconnected.");
+  }
+}
