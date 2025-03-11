@@ -1,7 +1,7 @@
 #include <WiFiS3.h>
 
 // -------------------------
-// WiFi & Server Settings
+// WIFI AND SERVER SETTINGS
 // -------------------------
 WiFiServer server(5200);
 WiFiClient client;
@@ -9,7 +9,7 @@ const char* ssid = "X10";
 const char* password = "12345678";
 
 // -------------------------
-// Motor Driver (L293D) Pins
+// MOTOR DRIVER PIN CONNECTIONS
 // -------------------------
 const int IN1 = 6;    // Motor A (Right) Direction Pin 1
 const int IN2 = 7;    // Motor A (Right) Direction Pin 2
@@ -19,7 +19,7 @@ const int EN_A = 9;   // Motor A (Right) PWM Speed
 const int EN_B = 5;   // Motor B (Left) PWM Speed
 
 // -------------------------
-// Sensor Pins
+// US AND IR SENSOR PINS
 // -------------------------
 const int LEYE = A4;  // Left IR Sensor (for line following)
 const int REYE = A3;  // Right IR Sensor
@@ -29,25 +29,26 @@ const int ECHO_PIN = 12;    // Ultrasonic Sensor Echo
 // -------------------------
 // PID Control Variables
 // -------------------------
-float Kp = 7.5;     // Proportional Gain (tune as needed)
-float Ki = 0.1;     // Integral Gain (tune as needed)
-float Kd = 5.0;     // Derivative Gain (tune as needed)
-int baseSpeed = 150;  // Base speed (PWM value)
+float Kp = 7.5;     // Proportional Gain 
+float Ki = 0.1;     // Integral Gain 
+float Kd = 5.0;     // Derivative Gain 
+// BASE SPEED (PWWM VALUE)
+int baseSpeed = 150;
 int lastError = 0;
 int integral = 0;
 
-// Correction factor for left motor speed (default 0.6 from your calibration)
+// Correction factor for left motor speed (I have measured it to be approx 0.6)
 // Set to 1.0 if PID alone corrects the difference.
 const float leftMotorFactor = 0.6;  
 
 // -------------------------
-// Robot State Flag
+// BUGGY STATE
 // -------------------------
 bool robotRunning = false;
 bool alert = false;
 
 // -------------------------
-// Function to Stop the Buggy
+// STOP BUGGY FUNCTION
 // -------------------------
 void stopBuggy() {
   digitalWrite(IN1, LOW);
@@ -60,7 +61,7 @@ void stopBuggy() {
 }
 
 // -------------------------
-// Function: PID-Based Movement (Line Following)
+// PID-BASED MOVEMENT FUNCTION
 // -------------------------
 void movePID() {
   // Read IR sensor values
@@ -80,14 +81,14 @@ void movePID() {
   int rightSpeed = baseSpeed + correction;   // Right motor (EN_A)
   int leftSpeed  = baseSpeed - correction;     // Left motor (EN_B)
   
-  // Apply fixed correction factor to left motor (to account for hardware differences)
+  // Apply fixed correction factor to left motor (to account for sketchy motor hardware differences)
   leftSpeed = leftSpeed * leftMotorFactor;
   
-  // Constrain speeds to a reasonable range (adjust these limits as needed)
+  // Constrain speeds to a reasonable range (ADJUST FOR TESTING)
   rightSpeed = constrain(rightSpeed, 100, 200);
   leftSpeed = constrain(leftSpeed, 100, 200);
   
-  // Debug prints (optional)
+  // Debug prints
   Serial.print("Left IR: ");
   Serial.print(leftSensor);
   Serial.print(" | Right IR: ");
@@ -113,7 +114,7 @@ void movePID() {
 }
 
 // -------------------------
-// Function: Ultrasonic Obstacle Check
+// US OBSTACLE CHECKING FUNCTION
 // -------------------------
 void checkUltrasonic() {
   // Trigger ultrasonic pulse
@@ -123,12 +124,12 @@ void checkUltrasonic() {
   delayMicroseconds(10);
   digitalWrite(TRIGGER_PIN, LOW);
   
-  // Read the echo pulse duration (with timeout of 30ms)
+  // Read the echo pulse duration (timeout of 30ms)
   long duration = pulseIn(ECHO_PIN, HIGH, 30000);
   int distance = duration * 0.034 / 2;  // Convert duration to cm
   
-  // If an obstacle is detected (within 10 cm), stop the buggy
-  if(distance > 0 && distance <= 10) {
+  // If an obstacle is detected (within 15 cm), stop the buggy
+  if(distance > 0 and distance <= 15) {
     stopBuggy();
     alert = true;
     Serial.println("Obstacle detected! Stopping.");
@@ -138,7 +139,7 @@ void checkUltrasonic() {
 }
 
 // -------------------------
-// Setup: Initialization
+// SETUP - INITIALISATION
 // -------------------------
 void setup() {
   Serial.begin(9600);
@@ -209,7 +210,7 @@ void loop() {
           movePID();
         }
         
-        // Optionally, send telemetry back to the client
+        // Send telemetry back to the client
         if(client.connected()) {
           if(alert) {
             client.println("Obstacle detected, stopping.");
