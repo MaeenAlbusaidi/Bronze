@@ -1,0 +1,313 @@
+//wifi connection
+#include <WiFiS3.h>  // Include WiFi library for Arduino UNO R4 WiFi
+WiFiServer server(5200);  // Open server on port 5200
+WiFiClient client;
+const char* ssid = "X10";  // Set WiFi name (SSID)
+const char* password = "12345678"; // Set WiFi password (minimum 8 characters)
+
+//motors pins
+const int IN1 = 7 ; // motor A (left) s1
+const int IN2 = 8; // motor A (left)s2
+const int IN3 = 4; // motor B (right)s3
+const int IN4 = 11; // motor B (right)s4
+const int EN_A = 9;
+const int EN_B = 5;
+
+//IR sensors pins
+const int LEYE = A4; // Left sensor
+const int REYE = A3; // Right sensor
+//For US Sensor
+const int TRIGGER_PIN = 13;
+const int ECHO_PIN = 12;
+long US_travel_time;
+int US_distance;
+// encoder pins
+int Encoder_L = 3;
+int Encoder_R = 2;
+// initialing 
+volatile int leftCount = 0;
+volatile int rightCount = 0;
+unsigned long prevTimeL = 0, prevTimeR = 0;
+unsigned long currentTime, previousTime;
+float leftRPM = 0, rightRPM = 0;
+double elapsedTime;
+double error, sumError, rateError, lastError = 0;
+int PID;
+int targetSpeed = 150; // the target speed by default is RPM 
+double Kp = 1, Ki=0, Kd=0;
+// Interrupt Service Routine (ISR) for encoders
+void leftEncoderISR() { leftCount++; }
+void rightEncoderISR() { rightCount++; }
+
+bool robotRunning = false;  // Track robot state
+bool alert = false;
+const int unit = 1000; // assign unit to be one second for the tiem manegement 
+void stopmove (){
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(EN_A, 0);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(EN_B, 0);
+
+}
+
+void moveforward(int speedL, int speedR){ // function to drive forward with int speed 
+ //measurepseed();
+ int Leftspeed = controlSpeed(speedL);
+ int Rightspeed = controlSpeed(speedR);
+
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(EN_A, (Leftspeed));
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(EN_B, (Rightspeed));
+}
+
+
+
+
+void forwardRight (int speed) {
+  //motor a
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(EN_A, (speed));
+//motor b
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(EN_B, (speed));
+}
+
+void forwardLeft (int speed) {
+  //motor a
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  analogWrite(EN_A, (speed));
+//motor b
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(EN_B, (speed));
+}
+
+
+
+void loopmove() {
+
+  int left_RPM = measureSpeedLeft();
+
+  int right_RPM = measureSpeedRight();
+  //Serial.print(right_RPM);
+  //Serial.print(" | ");
+  //Serial.println(left_RPM);
+  int value_SL = analogRead(LEYE);
+  int value_SR = analogRead(REYE);
+// debugging the IR senosrs 
+    /*Serial.print("Left :" );
+    Serial.print(value_SL);
+    Serial.print("Right : ");
+    Serial.println(value_SR);*/
+  if (value_SL >= 100 && value_SR >= 100) {
+      moveforward(left_RPM, right_RPM);
+    } else if (value_SL < 100 && value_SR >= 100) {
+      forwardLeft(80);
+    } else if (value_SL >= 100 && value_SR < 100) {
+      forwardRight(80);
+    } else {
+      moveforward(left_RPM, right_RPM);
+    }
+}
+
+void UScheck (){
+  //US Sensor
+//Clearing any history from the TRIGGER_PIN
+digitalWrite(TRIGGER_PIN, LOW);
+delayMicroseconds(2);
+
+//Generating US wave
+digitalWrite(TRIGGER_PIN, HIGH);
+delayMicroseconds(10);
+digitalWrite(TRIGGER_PIN, LOW);
+
+//pulseIn function waits for the ECHO_PIN to get to high caused by the sound wave bouncing back. It starts a timer which ends when the ECHO_PIN goes to low again.
+//pulseIn then returns the length of the pulse in micro seconds.
+US_travel_time = pulseIn(ECHO_PIN, HIGH);
+
+//0.034 is the speed of sound in cm/micro second. Divided by 2 as the wave travels to the object and back again
+US_distance = US_travel_time*0.034/2;
+
+if (US_distance<=10){
+  stopmove();
+  Serial.println("ALERT sent over WiFi");
+  //client.println("OBSTACLE SEEN"); // Send alert to Processing
+  alert = true ;
+} else if (US_distance >10){
+  loopmove();
+  alert = false;
+  //Serial.println("CLEAR sent over WiFi");
+  //client.println("CLEAR"); // Send "CLEAR" message
+}
+
+}
+
+
+// measure the wheels speed using encoders 
+int measureSpeedLeft() {
+   // Calculate RPM every 100 milisecond
+  unsigned long currentTime = millis();
+  if (currentTime - prevTimeL >= 100) {
+    leftRPM = (leftCount / 8) * 60.0;  // revolution per second 
+    //rightRPM = (rightCount / 8) * 60.0; 
+
+    leftCount = 0;
+    //rightCount = 0;
+    prevTimeL = currentTime;
+    //debugging the encoders 
+    //Serial.print("Left RPM: ");
+    //Serial.println(leftRPM);
+    //Serial.print(" | Right RPM: ");
+    //Serial.println(rightRPM);
+    return leftRPM;
+  }
+}
+int measureSpeedRight() {
+   // Calculate RPM every 100 milisecond
+  unsigned long currentTime = millis();
+  if (currentTime - prevTimeR >= 100) {
+    //leftRPM = (leftCount / 8) * 60.0;  // revolution per second 
+    //Serial.println(rightCount);
+    rightRPM = (rightCount / 8) * 60.0; 
+
+    //leftCount = 0;
+    rightCount = 0;
+    prevTimeR = currentTime;
+    //Serial.print("Right RPM: ");
+    //Serial.println(rightRPM);
+    //debugging the encoders 
+    //Serial.print("Left RPM: ");
+    //Serial.print(leftRPM);
+    return rightRPM;
+  }
+}
+// control speed function that will adjust the speed to the target speed required (left)
+int controlSpeed (int speed){
+ currentTime = millis();
+ elapsedTime = currentTime - previousTime;
+ // error in the left motor 
+ error = targetSpeed - speed ; // proportional 
+ sumError += error * elapsedTime; // integral 
+ rateError = (error - lastError)/ elapsedTime ;// derivitaive 
+ PID = constrain((Kp*error + Ki*sumError + Kd*rateError), 50, 255);
+ lastError = error;                                //remember current error
+ previousTime = currentTime;                        //remember current time
+ Serial.print("PID : ");
+ Serial.print(PID);
+ Serial.print(" | Error : ");
+ Serial.println(error);
+ return PID;
+}
+void setup() {
+Serial.begin(115200);// Start Serial communication
+  // put your setup code here, to run once:
+pinMode (IN1, OUTPUT);
+pinMode (IN2, OUTPUT);
+pinMode (IN3, OUTPUT);
+pinMode (IN4, OUTPUT);
+pinMode (EN_A, OUTPUT);
+pinMode (EN_B, OUTPUT);
+
+//semsors 
+pinMode( LEYE, INPUT ); // the IRn sensor1 
+pinMode( REYE, INPUT ); // the IR sensor 2
+
+//wifi connection 
+
+  
+  Serial.println("Starting Access Point...");
+
+  WiFi.beginAP(ssid, password);  // Create WiFi hotspot (AP Mode)
+
+  delay(5000);  // Wait for the AP to start
+// Ensure WiFi actually started
+  if (WiFi.localIP()) {
+    Serial.print("WiFi started! IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println(" WiFi failed to start!");
+  }
+
+  server.begin();
+  Serial.println("Server started on port 5200...");
+
+  //US Sensors
+pinMode(TRIGGER_PIN, OUTPUT);
+pinMode(ECHO_PIN, INPUT);
+// Encoder setup
+// Set encoder pins as input
+  pinMode(Encoder_L, INPUT_PULLUP);
+  pinMode(Encoder_R, INPUT_PULLUP);
+
+  // Attach interrupts
+  attachInterrupt(digitalPinToInterrupt(Encoder_L), leftEncoderISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Encoder_R), rightEncoderISR, CHANGE);
+//End of setup
+}
+
+
+void loop() {
+
+  
+
+
+WiFiClient client = server.available();  // Check for incoming connections
+
+  if (client) {
+    Serial.println(" Client connected!");
+
+    while (client.connected()) {  // Ensure connection is active
+      if (client.available()) {  // Check if data is available
+        String command = client.readStringUntil('\n');  // Read incoming message
+        command.trim();  // Remove spaces/newlines
+
+        Serial.print(" Received: ");
+        Serial.println(command);  // Print received command
+
+        if (command == "START") {
+          Serial.println(" Robot Starting...");
+          robotRunning = true;  // Set flag to keep running
+        } else if (command.startsWith("SPEED")){
+          robotRunning = true; 
+          int value = command.substring(5).toInt();
+          targetSpeed = value;
+          Serial.print("Received: ");
+          Serial.println(value);
+        }else if (command == "STOP") {
+          Serial.println(" Robot Stopping...");
+           robotRunning = false; // Stop movement
+          stopmove();  // Stop the buggy
+        }
+        
+    
+        //client.println("ACK");  // Send acknowledgment back to Processing
+      }
+      // Keep checking sensors if robot is running
+          if (robotRunning) {
+              loopmove();
+              UScheck ();
+              if (alert){
+                client.println("Stoped for an Obstacle"); 
+              } else if (!alert){
+                client.println("The route is clear"); 
+              }
+              
+              
+          }
+    }
+
+    client.stop();  // Close connection after processing
+  }
+    
+}
+
