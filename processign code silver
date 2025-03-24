@@ -1,0 +1,184 @@
+import processing.net.*; // Import network library for WiFi communication
+Client myClient; // Create Serial object
+String serverIP = "192.168.4.1";  // Default IP of Arduino in AP Mode
+int port = 5200; // Arduino's listening port
+String alert = "Waiting for a message";
+boolean buttonPressed1 = false; // boolean variable to trak whether the button is pressed or not 
+boolean buttonPressed2= false;
+boolean followbutton = false;
+boolean showAlert = false;  // Flag to track if alert is displayed
+String inputText = "";  // Stores the entered number
+boolean inputActive = false;  // Tracks if the text box is active
+// dragging slider 
+int sliderX, sliderY, sliderWidth;
+int handleX, handleRadius;
+boolean dragging = false;
+float sliderValue = 0; // Slider output (0 to 100)
+
+void setup() {
+  size(400, 400);
+  
+  println("Connecting to Arduino WiFi...");
+  myClient = new Client(this, serverIP, port);
+  
+  if (myClient.active()) {
+    println("Connected to Arduino!");
+  } else {
+    println("Failed to connect!");
+  }
+  // slider 
+  sliderX = 50;
+  sliderY = height / 2;
+  sliderWidth = 300;
+  handleRadius = 20;
+  handleX = sliderX; // Start at min position
+}
+
+void draw() {
+  background(255); // background color 
+  
+  // Button properties
+  int btnX1 = 20, btnY1 = 20, btnW1 = 100, btnH1 = 50; // define the button position and size 
+  int btnX2 = 20, btnY2 = 100, btnW2 = 100, btnH2 = 50;
+  
+  // if statement check if the button is checked 
+  if (buttonPressed1) {
+    fill(0, 255, 0);  // Green when pressed
+  } else {
+    fill(0, 0, 0);  // Red by default
+  }
+  rect(btnX1, btnY1, btnW1, btnH1); // start button draw the button as rectnagle 
+  if(buttonPressed2){
+    fill(200, 0 , 0);
+  }else {
+    fill(0);
+  }
+  rect(btnX2, btnY2, btnW2, btnH2); // stop button 
+  
+  fill(255); // text colour to white 
+  textSize(30); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically 
+  text("start", btnX1 + btnW1 / 2, btnY1 + btnH1 / 2);// disply the the button label 
+  text("stop", btnX2 + btnW2 / 2, btnY2 + btnH2 / 2);
+  
+  // alert box 
+  fill (100);
+  rect( 150, 35, 200, 50);
+  fill(255); // text colour to white 
+  textSize(20); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically
+  text( alert , 250, 60);
+   if (myClient.available() > 0) {
+        //delay(500);
+        String message = myClient.readStringUntil('\n');  // Read message from Arduino
+        if (message != null) {
+            message = trim(message);  // Clean up extra spaces/newlines
+            println(" Received: " + message);  // Print message in console
+            alert = message ; 
+        }
+    }
+  // Draw Slider Track
+  stroke(0);
+  line(sliderX, sliderY, sliderX + sliderWidth, sliderY);
+
+  // Draw Handle
+  fill(150);
+  ellipse(handleX, sliderY, handleRadius, handleRadius);
+
+  // Update Handle Position if Dragging
+  if (dragging) {
+    handleX = constrain(mouseX, sliderX, sliderX + sliderWidth);
+    sliderValue = map(handleX, sliderX, sliderX + sliderWidth, 0, 300);
+  }
+
+  // Display Slider Value
+  fill(0);
+  textSize(16);
+  text("Speed: " + int(sliderValue), sliderX, sliderY - 30);
+  
+  // send speed buttton 
+  fill (200);
+  rect( 270, 220, 70, 30, 20);
+  fill(5); // text colour to white 
+  textSize(20); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically
+  text( "SEND" , 305, 235);
+  
+  // distance 
+  /*fill (220);
+  rect( 20, 300, 100, 50);
+  fill(5); // text colour to white 
+  textSize(14); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically
+  text( "DISTANCE:" , 60, 310);
+  //Mode
+  fill (220);
+  rect( 120, 300, 100, 50);
+  fill(5); // text colour to white 
+  textSize(14); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically
+  text( "MODE:" , 150, 310);
+  //actual speed 
+  fill (220);
+  rect( 235, 300, 150, 50);
+  fill(5); // text colour to white 
+  textSize(14); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically
+  text( "ACTUAL SPEED:" , 290, 310);*/
+  //follow button 
+  if(followbutton){
+    fill(100, 50 , 30);
+  }else {
+    fill(0);
+  }
+  rect(150, 220, 80, 30); // follow button 
+  
+  fill(255); // text colour to white 
+  textSize(20); // font size
+  textAlign(CENTER, CENTER); // center text horizontally and vertically 
+  text("FOLLOW",  190, 235 );// disply the the button label 
+  
+  }
+// Check if button is clicked
+public void mousePressed() {
+  
+  
+  // check if the mouse has been clicked in the area of the button or not 
+  if (mouseX > 20 && mouseX < 120 && mouseY > 20 && mouseY < 70) {
+    buttonPressed1 = !buttonPressed1;
+    buttonPressed2 = false; // Ensure Stop button is not active
+    println(" Sending: START");
+    myClient.write("START\n");  // Send "START" command
+    
+  }
+  if (mouseX > 20 && mouseX < 120 && mouseY > 120 && mouseY < 170){
+    buttonPressed2 = !buttonPressed2;
+     buttonPressed1 = false; // Ensure Start button is not active
+     println("Sending: STOP");
+    myClient.write("STOP\n"); // Send command to Arduino
+  }
+    // if send pressed send the speed value 
+    if (mouseX > 270 && mouseX < 340 && mouseY > 220 && mouseY < 250){
+      myClient.write("SPEED" + sliderValue+ "\n");
+      print("send speed = ");
+      println(int(sliderValue));
+  
+}
+// slider 
+float d = dist(mouseX, mouseY, handleX, sliderY);
+  if (d < handleRadius / 2) {
+    dragging = true;
+  }
+  
+  //follow button 
+  if (mouseX > 150 && mouseX < 230 && mouseY > 220 && mouseY < 250){ // 150, 220, 80, 30
+    followbutton = true;
+      myClient.write("FOLLOW\n");
+      println("following an object");
+  
+}
+
+}
+void mouseReleased() {
+  dragging = false;
+}
