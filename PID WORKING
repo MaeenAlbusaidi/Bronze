@@ -1,0 +1,114 @@
+// Pin Definitions
+const int IN1 = 7;   // Right Motor Input 1
+const int IN2 = 8;   // Right Motor Input 2
+const int IN3 = 4;   // Left Motor Input 1
+const int IN4 = 11;  // Left Motor Input 2
+const int EN_A = 9;  // Right Motor PWM
+const int EN_B = 5;  // Left Motor PWM
+
+// IR Sensors
+const int LEYE = A4;  // Left IR sensor
+const int REYE = A3;  // Right IR sensor
+
+// PID Variables
+// Increase Kp if the robot is too slow to react to the error (but beware of overshooting).
+
+// Increase Ki if there's a persistent drift (slow, small errors) over time that the proportional term alone isn't fixing.
+
+// Increase Kd if the robot is overcorrecting or oscillating too much. It will help smooth the motion and prevent sharp turns.
+float Kp = 25;    // Correcting Error
+float Ki = 0.5;   
+float Kd = 10;  
+
+int baseSpeed = 120;      
+int maxSpeed = 255;        
+int minSpeed = 50;         
+
+float lastError = 0;      
+float integral = 0;      
+
+void setup() {
+  Serial.begin(9600);
+  
+  // Motor Pins
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(EN_A, OUTPUT);
+  pinMode(EN_B, OUTPUT);
+
+  // Sensor Pins
+  pinMode(LEYE, INPUT);
+  pinMode(REYE, INPUT);
+
+  Serial.println("PID Buggy Starting");
+}
+
+void loop() {
+  int leftValue = analogRead(LEYE);   // Read left IR sensor
+  int rightValue = analogRead(REYE);  // Read right IR sensor
+
+
+  int error = rightValue - leftValue;
+
+  // PID Calculations
+  integral += error;                        
+  float derivative = error - lastError;     
+  lastError = error;                       
+
+  // PID output: Weighted sum of error, integral, and derivative
+  float correction = Kp * error + Ki * integral + Kd * derivative;
+
+  // Adjust motor speeds
+  int leftMotorSpeed = constrain(baseSpeed - correction, minSpeed, maxSpeed);
+  int rightMotorSpeed = constrain(baseSpeed + correction, minSpeed, maxSpeed);
+
+  // Move motors based on PID correction
+  moveMotors(leftMotorSpeed, rightMotorSpeed);
+  
+
+  Serial.print("Left: ");
+  Serial.print(leftValue);
+  Serial.print(" | Right: ");
+  Serial.print(rightValue);
+  Serial.print(" | Error: ");
+  Serial.print(error);
+  Serial.print(" | LSpeed: ");
+  Serial.print(leftMotorSpeed);
+  Serial.print(" | RSpeed: ");
+  Serial.println(rightMotorSpeed);
+
+  delay(10);  // Small delay to stabilize readings
+}
+
+// Function to drive motors with given speeds
+void moveMotors(int leftSpeed, int rightSpeed) {
+  // Right motor forward
+  if (rightSpeed > 0) {
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+  } else {
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    rightSpeed = -rightSpeed;  // Make speed positive
+  }
+  analogWrite(EN_A, rightSpeed);
+
+  // Left motor forward
+  if (leftSpeed > 0) {
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
+  } else {
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
+    leftSpeed = -leftSpeed;  // Make speed positive
+  }
+  analogWrite(EN_B, leftSpeed);
+}
+
+// Stop both motors
+void stopMotors() {
+  analogWrite(EN_A, 0);
+  analogWrite(EN_B, 0);
+}
