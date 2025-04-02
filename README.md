@@ -15,7 +15,7 @@ The buggy must:
 # Silver Challenge
 
 Speed Control:
-- [ ]  Entering the reference speed into the GUI (should be possible to update at any time during the demo)
-- [ ]  A reference object placed in sight of the ultrasonic distance sensor. For the second mode, the buggy’s control strategy should be to keep a constant distance from the object (15 cm). The object is moving forward at varying speeds (no backward motion, so the buggy does not need to reverse at any point).
+- [X]  Entering the reference speed into the GUI (should be possible to update at any time during the demo)
+- [X]  A reference object placed in sight of the ultrasonic distance sensor. For the second mode, the buggy’s control strategy should be to keep a constant distance from the object (15 cm). The object is moving forward at varying speeds (no backward motion, so the buggy does not need to reverse at any point).
 
-- [ ]  The telemetry reported back to the GUI should contain the distance of the object, the current mode of control, the current reference speed, and the current speed of the buggy. 
+- [X]  The telemetry reported back to the GUI should contain the distance of the object, the current mode of control, the current reference speed, and the current speed of the buggy. 
